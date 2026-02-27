@@ -40,9 +40,11 @@ public class TsvFirstNormalFormConverter {
              PrintWriter writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputFileName), "UTF-8")))) {
 
             if ("1".equals(mode)) {
+                //変換対象のTSVファイルを第1正規化 (複数値を複数行に展開)し、別ファイルに出力
                 service.executeNormalize(reader, writer);
                 System.out.println("第1正規化 (複数値を複数行に展開)したファイルを出力しました");
             } else {
+                //変換対象のTSVファイルを逆変換 (複数行を1行に集約)し、別ファイルに出力
                 service.executeDenormalize(reader, writer);
                 System.out.println("逆変換 (複数行を1行に集約)したファイルを出力しました");
             }
