@@ -1,0 +1,10 @@
+# ビルド成果物（Maven）
+target/
+
+# IntelliJ IDEA の設定ファイル
+.idea/
+*.iml
+out/
+
+.DS_Store
+Thumbs.db
