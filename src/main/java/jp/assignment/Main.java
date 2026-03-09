@@ -1,6 +1,4 @@
-package jp.assignment.main;
-
-import jp.assignment.service.FirstNormalizationService;
+package jp.assignment;
 
 import java.io.*;
 import java.util.Scanner;
@@ -13,7 +11,7 @@ import java.util.Scanner;
  * 2. 逆変換:
  * 共通のキーを持つ複数行のデータを、区切り文字(":")を用いて1行のデータに集約します。
  */
-public class TsvFirstNormalFormConverter {
+public class Main {
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
@@ -34,7 +32,7 @@ public class TsvFirstNormalFormConverter {
         System.out.print("出力ファイル名を指定してください (入力例: output1.tsv) > ");
         String outputFileName = scanner.nextLine();
 
-        FirstNormalizationService service = new FirstNormalizationService("\t", ":");
+        FirstNormalize service = new FirstNormalize("\t", ":");
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(inputFileName), "UTF-8"));
              PrintWriter writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputFileName), "UTF-8")))) {

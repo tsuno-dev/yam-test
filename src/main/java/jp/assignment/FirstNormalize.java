@@ -1,4 +1,4 @@
-package jp.assignment.service;
+package jp.assignment;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -11,7 +11,7 @@ import java.io.IOException;
 /**
  * 第1正規化または逆変換の機能を実装しているクラス。
  */
-public class FirstNormalizationService {
+public class FirstNormalize {
 
     private final String fieldDelimiter;
     private final String collectionDelimiter;
@@ -21,7 +21,7 @@ public class FirstNormalizationService {
      * @param fieldDelimiter   フィールド区切り文字
      * @param collectionDelimiter 複数要素の区切り文字
      */
-    public  FirstNormalizationService(String fieldDelimiter, String collectionDelimiter) {
+    public FirstNormalize(String fieldDelimiter, String collectionDelimiter) {
         this.fieldDelimiter = fieldDelimiter;
         this.collectionDelimiter = collectionDelimiter;
     }
