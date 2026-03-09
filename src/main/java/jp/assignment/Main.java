@@ -1,7 +1,12 @@
 package jp.assignment;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Scanner;
+import java.util.Optional;
+import java.util.Arrays;
 
 /**
  * タブで列が区切られたデータ(TSV)を読み込み、第1正規化または逆変換を行うメインクラス(エントリーポイント)。
@@ -20,11 +25,12 @@ public class Main {
         System.out.println("1: 第1正規化 (複数値を複数行に展開する)");
         System.out.println("2: 逆変換 (複数行を1行に集約する)");
         System.out.print("実行するモード（1または2）を選択してください　> ");
-        String mode = scanner.nextLine();
 
-        if (!"1".equals(mode) && !"2".equals(mode)) {
-            System.out.println("エラー: 1または2を選択してください。処理を中断します。");
-            return; // mainメソッドを抜けて終了
+        // 入力値をMode列挙型に変換。不正な入力の場合はOptionalが空になる
+        Optional<Mode> mode = Mode.fromString(scanner.nextLine());
+        if (mode.isEmpty()) {
+            System.out.println("エラー: 1または2を選択してください。");
+            return;
         }
 
         System.out.print("変換対象のTSVファイル名を指定してください (入力例: input1.tsv) > ");
@@ -34,21 +40,45 @@ public class Main {
 
         FirstNormalize service = new FirstNormalize("\t", ":");
 
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(inputFileName), "UTF-8"));
-             PrintWriter writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputFileName), "UTF-8")))) {
+        //【修正】PrintWriterからBufferedWriterに修正
+        try (BufferedReader reader = Files.newBufferedReader(Path.of(inputFileName), StandardCharsets.UTF_8);
+             BufferedWriter writer = Files.newBufferedWriter(Path.of(outputFileName), StandardCharsets.UTF_8)) {
 
-            if ("1".equals(mode)) {
-                //変換対象のTSVファイルを第1正規化 (複数値を複数行に展開)し、別ファイルに出力
-                service.executeNormalize(reader, writer);
-                System.out.println("第1正規化 (複数値を複数行に展開)したファイルを出力しました");
-            } else {
-                //変換対象のTSVファイルを逆変換 (複数行を1行に集約)し、別ファイルに出力
-                service.executeDenormalize(reader, writer);
-                System.out.println("逆変換 (複数行を1行に集約)したファイルを出力しました");
+            //【修正】if文の条件分岐からswitch文を使用した分岐に修正
+            switch (mode.get()) {
+                case NORMALIZE -> {
+                    service.executeNormalize(reader, writer);
+                    System.out.println("第1正規化 (複数値を複数行に展開)したファイルを出力しました");
+                }
+                case DENORMALIZE -> {
+                    service.executeDenormalize(reader, writer);
+                    System.out.println("逆変換 (複数行を1行に集約)したファイルを出力しました");
+                }
             }
 
         } catch (IOException e) {
             System.err.println("エラー: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 実行モードを管理する列挙型。
+     */
+    public enum Mode {
+        NORMALIZE("1"),
+        DENORMALIZE("2");
+
+        private final String value;
+
+        Mode(String value) {
+            this.value = value;
+        }
+
+        // 入力された文字列から対応するModeを返すメソッド(一致しない場合は、空を返す)
+        public static Optional<Mode> fromString(String input) {
+            return Arrays.stream(Mode.values())
+                    .filter(m -> m.value.equals(input))
+                    .findFirst();
         }
     }
 }
