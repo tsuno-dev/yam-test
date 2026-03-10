@@ -30,7 +30,7 @@ public class FirstNormalize {
 
     /**
      * 第1正規化 (複数値を複数行に展開する) を実行。
-     * 入力データを区切り文字ごとに分割し、複数要素を展開して正規化された形式で出力。
+     * 複数要素を展開して正規化された形式で出力。
      *
      * @param reader 入力データストリーム
      * @param writer 出力データストリーム
@@ -47,16 +47,41 @@ public class FirstNormalize {
             // 例: "banana:cherry\tfruit" -> ["banana:cherry", "fruit"]
             String[] columns = line.split(fieldDelimiter, -1);  // 末尾の空セルを考慮し、limit引数に -1 を指定して分割
 
-            // 2. さらに複数要素の区切り文字ごとに分割し、各要素をリストに格納
+            // 2. さらに複数要素の区切り文字ごとに分割し、各要素をリストに格納（）
             // 例: ["banana:cherry", "fruit"] -> [ ["banana", "cherry"], ["fruit"] ]
             List<String[]> multiColumnValueList = new ArrayList<>();
             for (String column : columns) {
-                multiColumnValueList.add(column.split(elementDelimiter, -1));
+                multiColumnValueList.add(splitAndUnescape(column));
             }
 
             // 3. 格納したリストを元に、正規化された行を出力
             outputNormalizedRow(multiColumnValueList, 0, new ArrayList<>(), writer);
         }
+    }
+
+    /**
+     * 入力データを複数要素の区切り文字ごとに分割し、エスケープ文字を解除します。
+     * 時刻データなどの「\:」を分割せず、かつ「\\」を「\」として扱います。
+     *
+     * @param column 分割対象の文字列
+     * @return エスケープ解除済みの要素配列
+     */
+    private String[] splitAndUnescape(String column) {
+        String regex = "(?<!\\\\)(?:\\\\\\\\)*" + elementDelimiter;
+
+        // 1. エスケープ文字（\:）を考慮し、直前に奇数個のバックスラッシュがない区切り文字で分割（偶数個の場合はバックスラッシュの文字列として認識）
+        // 例: "fruit:sale" -> ["fruit", "sale"]
+        // 例: "18\:00\:00" -> ["18\:00\:00"] (エスケープされているため分割しない)
+        String[] elements = column.split(regex, -1);
+
+        for (int i = 0; i < elements.length; i++) {
+            // 2. \: -> : に戻した後、\\ -> \ に戻す
+            // 例: "18\:00\:00" -> "18:00:00"
+            elements[i] = elements[i]
+                    .replace("\\" + elementDelimiter, elementDelimiter)
+                    .replace("\\\\", "\\");
+        }
+        return elements;
     }
 
     /**
