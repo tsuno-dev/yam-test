@@ -41,8 +41,8 @@ public class Main {
         FirstNormalize service = new FirstNormalize("\t", ":");
 
         //【修正】PrintWriterからBufferedWriterに修正
-        try (BufferedReader reader = Files.newBufferedReader(Path.of(inputFileName), StandardCharsets.UTF_8);
-             BufferedWriter writer = Files.newBufferedWriter(Path.of(outputFileName), StandardCharsets.UTF_8)) {
+        try (BufferedReader reader = Files.newBufferedReader(Path.of(inputFileName));
+             BufferedWriter writer = Files.newBufferedWriter(Path.of(outputFileName))) {
 
             //【修正】if文の条件分岐からswitch文を使用した分岐に修正
             switch (mode.get()) {
