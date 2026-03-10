@@ -1,5 +1,6 @@
-package jp.assignment.service;
+package jp.assignment;
 
+import java.io.BufferedWriter;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
@@ -11,43 +12,46 @@ import java.io.IOException;
 /**
  * 第1正規化または逆変換の機能を実装しているクラス。
  */
-public class FirstNormalizationService {
+public class FirstNormalize {
 
     private final String fieldDelimiter;
-    private final String collectionDelimiter;
+    private final String elementDelimiter;
 
     /**
      * 区切り文字を指定してサービスを初期化。
+     *
      * @param fieldDelimiter   フィールド区切り文字
-     * @param collectionDelimiter 複数要素の区切り文字
+     * @param elementDelimiter 複数要素の区切り文字
      */
-    public  FirstNormalizationService(String fieldDelimiter, String collectionDelimiter) {
+    public FirstNormalize(String fieldDelimiter, String elementDelimiter) {
         this.fieldDelimiter = fieldDelimiter;
-        this.collectionDelimiter = collectionDelimiter;
+        this.elementDelimiter = elementDelimiter;   //【修正】collectionDelimiter -> elementDelimiter
     }
 
     /**
      * 第1正規化 (複数値を複数行に展開する) を実行。
-     * 入力データを区切り文字ごとに分割し、複数要素を展開して正規化された形式で出力。
+     * 複数要素を展開して正規化された形式で出力。
+     *
      * @param reader 入力データストリーム
      * @param writer 出力データストリーム
      * @throws IOException 入出力エラー時に発生
      */
-    public void executeNormalize(BufferedReader reader, PrintWriter writer) throws IOException {
+    public void executeNormalize(BufferedReader reader, BufferedWriter writer) throws IOException {
         String line;
         // データの読み込み
         while ((line = reader.readLine()) != null) {
-            if (line.trim().isEmpty()) continue;    // 空行はスキップ
+            //【修正】仕様により、空のセルを出力させる必要があるため、下記の処理をコメントアウト
+            //if (line.trim().isEmpty()) continue;    // 空行はスキップ
 
             // 1. フィールド区切り文字ごとに分割
             // 例: "banana:cherry\tfruit" -> ["banana:cherry", "fruit"]
             String[] columns = line.split(fieldDelimiter, -1);  // 末尾の空セルを考慮し、limit引数に -1 を指定して分割
 
-            // 2. さらに複数要素の区切り文字ごとに分割し、各要素をリストに格納
+            // 2. さらに複数要素の区切り文字ごとに分割し、各要素をリストに格納（）
             // 例: ["banana:cherry", "fruit"] -> [ ["banana", "cherry"], ["fruit"] ]
             List<String[]> multiColumnValueList = new ArrayList<>();
             for (String column : columns) {
-                multiColumnValueList.add(column.split(collectionDelimiter, -1));
+                multiColumnValueList.add(splitAndUnescape(column));
             }
 
             // 3. 格納したリストを元に、正規化された行を出力
@@ -56,16 +60,43 @@ public class FirstNormalizationService {
     }
 
     /**
-     * 複数カラムに含まれる値の全組み合わせを再帰的に生成し、区切り文字で連結して出力。
-     * @param multiColumnValueList    各カラムの値を格納したリスト
-     * @param columnIndex   処理対象カラムのインデックス
-     * @param outputValueList 出力用のリスト
-     * @param writer 出力データストリーム
+     * 入力データを複数要素の区切り文字ごとに分割し、エスケープ文字を解除します。
+     * 時刻データなどの「\:」を分割せず、かつ「\\」を「\」として扱います。
+     *
+     * @param column 分割対象の文字列
+     * @return エスケープ解除済みの要素配列
      */
-    private void outputNormalizedRow(List<String[]> multiColumnValueList, int columnIndex, List<String> outputValueList, PrintWriter writer) {
+    private String[] splitAndUnescape(String column) {
+        String regex = "(?<!\\\\)(?:\\\\\\\\)*" + elementDelimiter;
+
+        // 1. エスケープ文字（\:）を考慮し、直前に奇数個のバックスラッシュがない区切り文字で分割（偶数個の場合はバックスラッシュの文字列として認識）
+        // 例: "fruit:sale" -> ["fruit", "sale"]
+        // 例: "18\:00\:00" -> ["18\:00\:00"] (エスケープされているため分割しない)
+        String[] elements = column.split(regex, -1);
+
+        for (int i = 0; i < elements.length; i++) {
+            // 2. \: -> : に戻した後、\\ -> \ に戻す
+            // 例: "18\:00\:00" -> "18:00:00"
+            elements[i] = elements[i]
+                    .replace("\\" + elementDelimiter, elementDelimiter)
+                    .replace("\\\\", "\\");
+        }
+        return elements;
+    }
+
+    /**
+     * 複数カラムに含まれる値の全組み合わせを再帰的に生成し、区切り文字で連結して出力。
+     *
+     * @param multiColumnValueList 各カラムの値を格納したリスト
+     * @param columnIndex          処理対象カラムのインデックス
+     * @param outputValueList      出力用のリスト
+     * @param writer               出力データストリーム
+     */
+    private void outputNormalizedRow(List<String[]> multiColumnValueList, int columnIndex, List<String> outputValueList, BufferedWriter writer) throws IOException {
         // カラムのインデックスがリストサイズと同様の場合、抽出したリストを複数要素の区切り文字で連結（第1正規化）し、出力
         if (columnIndex == multiColumnValueList.size()) {
-            writer.println(String.join(fieldDelimiter, outputValueList));
+            writer.write(String.join(fieldDelimiter, outputValueList));
+            writer.newLine(); // 改行
             return;
         }
 
@@ -80,18 +111,20 @@ public class FirstNormalizationService {
     /**
      * 逆変換（同じキーを持つ値を集約）を実行。
      * 入力データを読み込み、同じキーを持つ値を集約して出力する。
+     *
      * @param reader 入力データストリーム
      * @param writer 出力データストリーム
      * @throws IOException 入出力エラー時に発生
      */
-    public void executeDenormalize(BufferedReader reader, PrintWriter writer) throws IOException {
+    public void executeDenormalize(BufferedReader reader, BufferedWriter writer) throws IOException {
         // キーの昇順を維持するため TreeMap を使用
         Map<String, List<String>> groups = new TreeMap<>();
         String line;
 
         // データの読み込み
         while ((line = reader.readLine()) != null) {
-            if (line.trim().isEmpty()) continue;
+            //【修正】仕様により、空の行が存在するため、下記の処理をコメントアウト
+            //if (line.trim().isEmpty()) continue;
             String[] columns = line.split(fieldDelimiter, -1);  // 末尾の空セルを考慮し、limit引数に -1 を指定して分割
 
             // キー(1列目)と値(2列目)が存在する場合のみグループへ追加
@@ -104,10 +137,11 @@ public class FirstNormalizationService {
         // 集約した結果をフォーマットして出力
         for (Map.Entry<String, List<String>> entry : groups.entrySet()) {
             // 値のリストを複数要素の区切り文字で連結
-            String joinedValues = String.join(collectionDelimiter, entry.getValue());
+            String joinedValues = String.join(elementDelimiter, entry.getValue());
 
             // キー + フィールド区切り文字 + 連結された値 を出力
-            writer.println(entry.getKey() + fieldDelimiter + joinedValues);
+            writer.write(entry.getKey() + fieldDelimiter + joinedValues);
+            writer.newLine(); // 改行
         }
     }
 }
