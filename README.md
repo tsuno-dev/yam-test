@@ -72,7 +72,7 @@ mvn clean package
 ### 起動コマンド
 
 ```bash
-java -cp target/classes jp.assignment.main.TsvFirstNormalFormConverter
+java -cp target/classes jp.assignment.Main
 
 ```
 
